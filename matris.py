@@ -8,6 +8,11 @@ import kezmenu
 from tetrominoes import list_of_tetrominoes
 from tetrominoes import rotate
 
+import argparse
+import os
+import time
+import sys
+
 from scores import load_score, write_score
 
 class GameOver(Exception):
@@ -35,6 +40,33 @@ HEIGHT = (MATRIX_HEIGHT-2)*BLOCKSIZE + BORDERWIDTH*2 + MATRIS_OFFSET*2
 TRICKY_CENTERX = WIDTH-(WIDTH-(MATRIS_OFFSET+BLOCKSIZE*MATRIX_WIDTH+BORDERWIDTH*2))/2
 
 VISIBLE_MATRIX_HEIGHT = MATRIX_HEIGHT - 2
+
+
+# new
+TIME_LIMIT = None
+START_TIME = time.time()
+
+LOG_FPATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), "matris.log")
+LOG_FILE = None
+
+CANCELABLE = False
+
+def log(string):
+    LOG_FILE.write(string + "\n")
+    LOG_FILE.flush()
+    
+RENDER_RECT = pygame.rect=(0, 0, WIDTH, HEIGHT)
+
+def matrisquit(reason=None):
+    if reason is None:
+        reason = "NO_REASON_GIVEN"
+    
+    log("%.7f,QUIT,%s" % (time.time(), reason))
+    
+    LOG_FILE.close()
+    
+    pygame.quit()
+    sys.exit()
 
 
 class Matris(object):
@@ -71,7 +103,7 @@ class Matris(object):
         
         self.paused = False
 
-        self.highscore = load_score()
+        self.highscore = 0  # load_score()
         self.played_highscorebeaten_sound = False
 
         self.levelup_sound  = get_sound("levelup.wav")
@@ -101,6 +133,7 @@ class Matris(object):
         while self.request_movement('down'):
             amount += 1
         self.score += 10*amount
+        log("%.7f,SCORE=%d" % (time.time(), self.score))
 
         self.lock_tetromino()
 
@@ -117,14 +150,12 @@ class Matris(object):
         events = pygame.event.get()
         #Controls pausing and quitting the game.
         for event in events:
-            if pressed(pygame.K_p):
-                self.surface.fill((0,0,0))
-                self.needs_redraw = True
-                self.paused = not self.paused
-            elif event.type == pygame.QUIT:
+            if event.type == pygame.QUIT:
                 self.gameover(full_exit=True)
             elif pressed(pygame.K_ESCAPE):
-                self.gameover()
+                if CANCELABLE == True:
+                    log("%.7f,ESCAPE_PRESSED" % (time.time()))
+                    matrisquit()
 
         if self.paused:
             return self.needs_redraw
@@ -201,9 +232,13 @@ class Matris(object):
         write_score(self.score)
         
         if full_exit:
-            exit()
+            matrisquit("FULL_EXIT")
         else:
-            raise GameOver("Sucker!")
+            Game().main(screen)
+            # screen = pygame.display.set_mode((WIDTH, HEIGHT), (pygame.FULLSCREEN))
+            # pygame.display.set_caption("MaTris")
+            # Menu().main(screen)
+            # raise GameOver("Sucker!")
 
     def place_shadow(self):
         """
@@ -334,25 +369,31 @@ class Matris(object):
         self.lines += lines_cleared
 
         if lines_cleared:
+            log("%.7f,LINES_CLEARED=%d" % (time.time(), lines_cleared))
+            
             if lines_cleared >= 4:
-                self.linescleared_sound.play()
+                # self.linescleared_sound.play()
+                pass
             self.score += 100 * (lines_cleared**2) * self.combo
+            log("%.7f,SCORE=%d" % (time.time(), self.score))
 
             if not self.played_highscorebeaten_sound and self.score > self.highscore:
                 if self.highscore != 0:
-                    self.highscorebeaten_sound.play()
+                    # self.highscorebeaten_sound.play()
+                    pass
                 self.played_highscorebeaten_sound = True
 
         if self.lines >= self.level*10:
-            self.levelup_sound.play()
+            # self.levelup_sound.play()
             self.level += 1
+            log("%.7f,LEVEL_UP=%d" % (time.time(), self.level))
 
         self.combo = self.combo + 1 if lines_cleared else 1
 
         self.set_tetrominoes()
 
         if not self.blend():
-            self.gameover_sound.play()
+            # self.gameover_sound.play()
             self.gameover()
             
         self.needs_redraw = True
@@ -436,7 +477,7 @@ class Game(object):
         
         matris_border = Surface((MATRIX_WIDTH*BLOCKSIZE+BORDERWIDTH*2, VISIBLE_MATRIX_HEIGHT*BLOCKSIZE+BORDERWIDTH*2))
         matris_border.fill(BORDERCOLOR)
-        screen.blit(matris_border, (MATRIS_OFFSET,MATRIS_OFFSET))
+        screen.blit(matris_border, (MATRIS_OFFSET, MATRIS_OFFSET))
         
         self.redraw()
 
@@ -447,19 +488,25 @@ class Game(object):
                     self.redraw()
             except GameOver:
                 return
-      
-
+    
     def redraw(self):
         """
         Redraws the information panel and next termoino panel
         """
+        
+        if TIME_LIMIT is not None and time.time()-START_TIME >= TIME_LIMIT:
+            matrisquit("TIME_OUT")
+            
         if not self.matris.paused:
             self.blit_next_tetromino(self.matris.surface_of_next_tetromino)
             self.blit_info()
 
             self.matris.draw_surface()
 
-        pygame.display.flip()
+        # pygame.display.flip()
+        
+        FULLSCREEN.blit(screen, RENDER_RECT)
+        pygame.display.update(RENDER_RECT)
 
 
     def blit_info(self):
@@ -469,6 +516,8 @@ class Game(object):
         textcolor = (255, 255, 255)
         font = pygame.font.Font(None, 30)
         width = (WIDTH-(MATRIS_OFFSET+BLOCKSIZE*MATRIX_WIDTH+BORDERWIDTH*2)) - MATRIS_OFFSET*2
+        # width = (WIDTH-(20+BLOCKSIZE*MATRIX_WIDTH+BORDERWIDTH*2)) - 20*2
+        # width = 320
 
         def renderpair(text, val):
             text = font.render(text, True, textcolor)
@@ -528,6 +577,8 @@ class Menu(object):
     """
     running = True
     def main(self, screen):
+        Game().main(screen)
+        
         clock = pygame.time.Clock()
         menu = kezmenu.KezMenu(
             ['Play!', lambda: Game().main(screen)],
@@ -548,7 +599,7 @@ class Menu(object):
 
             for event in events:
                 if event.type == pygame.QUIT:
-                    exit()
+                    matrisquit("EVENT_PYGAME_QUIT")
 
             menu.update(events, timepassed)
 
@@ -567,7 +618,7 @@ class Menu(object):
         Loads high score from file
         """
         font = pygame.font.Font(None, 50)
-        highscore = load_score()
+        highscore = 0  # load_score()
         text = "Highscore: {}".format(highscore)
         return font.render(text, True, (255,255,255))
 
@@ -595,8 +646,47 @@ def construct_nightmare(size):
 
 
 if __name__ == '__main__':
-    pygame.init()
+    parser = argparse.ArgumentParser(description='MaTris - a Tetris clone in python.')
+    parser.add_argument(
+        "--timelimit",
+        type=int,
+        help="Number of seconds after which the process will automatically terminate.",
+    )
+    parser.add_argument(
+        "--log_fpath",
+        type=str,
+        help="Path to the log file",
+    )
+    parser.add_argument(
+        "--cancelable",
+        type=str,
+        help="If set to anything, will allow stopping the game by pressing the Escape key.",
+    )
 
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    args = parser.parse_args()
+    
+    if args.timelimit:
+        TIME_LIMIT = args.timelimit
+    
+    if args.log_fpath:
+        LOG_FPATH = args.log_fpath
+    LOG_FILE = open(LOG_FPATH, "a+")
+    
+    if args.cancelable:
+        CANCELABLE = True
+    
+    log("%.7f,INITIALIZED" % time.time())
+    
+    ###
+
+    pygame.init()
+    pygame.mouse.set_visible(False)
+
+    mode = pygame.display.list_modes()[0]
+    
+    RENDER_RECT = pygame.rect=(mode[0]//2 - WIDTH//2, mode[1]//2 - HEIGHT//2, WIDTH, HEIGHT)
+
+    FULLSCREEN = pygame.display.set_mode(mode, (pygame.FULLSCREEN))
+    screen = pygame.Surface((WIDTH, HEIGHT))
     pygame.display.set_caption("MaTris")
-    Menu().main(screen)
+    Game().main(screen)
