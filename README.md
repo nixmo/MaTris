@@ -1,19 +1,24 @@
 MaTris
 ======
 
-A clone of Tetris made using Pygame. Licensed under the GNU GPLv3. Works with both Python 2 and 3.
+This fork is modified to be usable in laboratory experiments with human subjects.
 
-Run `python matris.py` (or `python3 matris.py`) to start the game.
+**Modifications:**
+- The game runs in fullscreen mode (centered, with black bars on all four sides)
+- The game starts right away. On game over, a new game starts immediately. The menu is not shown anymore.
+- Ingame events will be logged to a text file (by default `matris.log`) with time stamps
+- Added command line arguments `cancelable`, `timelimit`,  `log_fpath`
 
-Requirements
-============
+   If the `--cancelable` argument is passed, <kbd>Esc</kbd> can be used to quit the game. This was default behavior in the original and has been moved to an optional command line argument in this fork to prevent subjects from accidentially aborting the experiment.
+   
+   If a number is passed through the `--timelimit` argument, the game will automatically terminate after that amount of seconds. If `timelimit` is not set, the game will be `cancelable` by pressing <kbd>Esc</kbd> (otherwise there would be no way to quit the game)
+      
+   `--log_fpath` can be used to pass a path to a log file that should be used instead of the default `matris.log`. Python will attempt to open this in `a+` mode.
+   
+## Example Usage
 
-The game requires [pygame](https://www.pygame.org). On Ubuntu it can be installed with these commands: `sudo apt install python-pip && sudo pip install pygame` (for Python 2) `sudo apt install python3-pip && sudo pip3 install pygame` (for Python 3).
+For example, to run this fork with a timelimit of 5 minutes, use:
 
-Demo
-====
-![Demo](demo.png)
-
-Coveted by academia
-========================
-In 2013, my game [was used](http://eprints.ucm.es/22631/1/REMIRTA.pdf) by someone in Madrid to test "remote execution of multimedia interactive real-time applications". The next year, [a study in Denmark](https://www.academia.edu/6262472/Improving_game_experience_using_dynamic_difficulty_adjustment_based_on_physiological_signals) called "Improving game experience using dynamic diﬃculty adjustment" asked participants to "self-rate their valence and arousal [sic]" playing MaTris! Who would've thunk it? In 2016, people in Stanford [were using the game](http://cs231n.stanford.edu/reports/2016/pdfs/121_Report.pdf) to try out deep reinforcement learning, although apparently the result was not as "respectable" as it could've been. Not a problem in Korea, apparently, where students [are expected](http://nlp.chonbuk.ac.kr/AML/AML_assignment_2.pdf) to accomplish it! That stuff is way above my head, but perhaps my life will be spared during the singularity?
+```bash
+$ pipenv run python matris.py --timelimit 300
+```
