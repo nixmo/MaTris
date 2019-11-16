@@ -6,6 +6,7 @@ This fork is modified to be usable in laboratory experiments with human subjects
 **Modifications:**
 - The game runs in fullscreen mode (centered, with black bars on all four sides)
 - The game starts right away. On game over, a new game starts immediately. The menu is not shown anymore.
+- Sounds removed (commented out)
 - Ingame events will be logged to a text file (by default `matris.log`) with time stamps
 - Added command line arguments `cancelable`, `timelimit`,  `log_fpath`
 
